@@ -1,26 +1,42 @@
 (defmodule sockserv_serv
-  (export all))
+  (export (start_link 2)
+          (init 1)
+          (handle_call 3)
+          (handle_cast 2)
+          (handle_info 2)
+          (terminate 2)))
+
+(defrecord state
+  socket
+  handler)
 
 ;;; API
-(defun start_link (listen-socket)
-  (gen_server:start_link (MODULE) listen-socket ()))
+(defun start_link (listen-socket handler)
+  (gen_server:start_link (MODULE)
+                         (tuple listen-socket handler)
+                         ()))
 
-;;; gen-server callbacks
-(defun init (listen-socket)
-  (gen_server:cast (self) 'accept)
-  (tuple 'ok listen-socket))
+;;; gen_server callbacks
+(defun init
+  (((tuple listen-socket handler))
+   (apply handler 'register ())
+   (gen_server:cast (self) (tuple 'accept listen-socket))
+   (tuple 'ok (make-state handler handler))))
 
 ;; No-op handle call
 (defun handle_call (e from state)
   (tuple 'noreply state))
 
 (defun handle_cast
-  (('accept state)
+  (((tuple 'accept listen-socket) state)
    (error_logger:info_msg "~p (~p) blocks awaiting for connection~n" (list (MODULE) (self)))
-   (case (gen_tcp:accept state)
+   (case (gen_tcp:accept listen-socket)
      ((tuple 'ok socket)
       (error_logger:info_msg "~p (~p) accepted new connection~n" (list (MODULE) (self)))
-      (tuple 'noreply socket))))
+      (tuple 'noreply (set-state-socket state socket)))))
+  (((tuple 'msg msg) state)
+   (gen_tcp:send (state-socket state) msg)
+   (tuple 'noreply state))
   ;; Catch-all cast handler
   ((request state)
    (error_logger:warning_msg "Unhandled cast in ~p (~p): ~p~n" (list (MODULE) (self) request))
@@ -29,7 +45,8 @@
 (defun handle_info
   (((tuple 'tcp port msg) state)
    (error_logger:info_msg "~p (~p) received message: ~p~n" (list (MODULE) (self) msg))
-   (tuple 'noreply (handle_msg state msg)))
+   (handle_msg state msg)
+   (tuple 'noreply state))
   (((tuple 'tcp_closed socket) state)
    (error_logger:info_msg "~p (~p) closed connection~n" (list (MODULE) (self)))
    (tuple 'stop 'normal state))
@@ -45,4 +62,4 @@
 
 ;;; Internal functions
 (defun handle_msg (state msg)
-  state)
+  (apply (state-handler state) 'handle (list msg)))
