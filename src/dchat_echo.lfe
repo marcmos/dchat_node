@@ -1,6 +1,6 @@
 ;;; Example echo event handler
 ;;; Use as template for handler used by sockserv_serv
-(defmodule echo
+(defmodule dchat_echo
   (export (start_link 0)
           (handle 1)
           (register 0)

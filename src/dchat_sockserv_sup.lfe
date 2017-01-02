@@ -1,4 +1,4 @@
-(defmodule sockserv_sup
+(defmodule dchat_sockserv_sup
   (export (start_link 2)
           (accept 0)
           (init 1)))
@@ -18,7 +18,7 @@
   (((tuple listen-socket handler))
    (let ((sup-flags (map 'strategy 'simple_one_for_one))
          (socket-server-spec (map 'id 'socket_server
-                                  'start `#(sockserv_serv
+                                  'start `#(dchat_sockserv_serv
                                             start_link
                                             (,listen-socket ,handler)))))
      (tuple 'ok (tuple sup-flags (list socket-server-spec))))))

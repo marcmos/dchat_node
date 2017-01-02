@@ -1,4 +1,4 @@
-(defmodule sockserv_serv
+(defmodule dchat_sockserv_serv
   (export (start_link 2)
           (init 1)
           (handle_call 3)
