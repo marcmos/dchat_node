@@ -3,14 +3,14 @@
           (init 1)
           (accept 2)))
 
-;; API
+;;; API
 (defun start_link (handler)
   (supervisor:start_link (MODULE) (list handler)))
 
 (defun accept (sup listen-socket)
   (supervisor:start_child sup (list listen-socket)))
 
-;; supervisor callbacks
+;;; supervisor callbacks
 (defun init (args)
   (let ((sup-flags (map 'strategy 'simple_one_for_one))
         (socket-server-spec (map 'id 'socket_server

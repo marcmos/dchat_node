@@ -1,5 +1,6 @@
 (defmodule dchat_conn_pool_sup
-  (export all))
+  (export (start_link 2)
+          (init 1)))
 
 ;;; API
 (defun start_link (port handler)
