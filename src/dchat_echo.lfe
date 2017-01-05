@@ -2,8 +2,8 @@
 ;;; Use as template for handler used by sockserv_serv
 (defmodule dchat_echo
   (export (start_link 0)
-          (handle 1)
-          (register 0)
+;;          (handle_msg 1)
+;;          (register 0)
           (init 1)
           (handle_event 2)
           (handle_call 2)
@@ -17,11 +17,11 @@
     (gen_event:add_handler pid (MODULE) ())
     (tuple 'ok pid)))
 
-(defun handle (msg)
-  (gen_event:notify (MODULE) (tuple 'msg msg)))
+;;(defun handle_msg (msg)
+;;  (gen_event:notify (MODULE) (tuple 'msg msg)))
 
-(defun register ()
-  (gen_event:notify (MODULE) (tuple 'register (self))))
+;;(defun register ()
+;;  (gen_event:notify (MODULE) (tuple 'register (self))))
 
 ;;; gen_event callback functions
 (defun init
@@ -31,7 +31,7 @@
   (((tuple 'msg msg) state)
    (broadcast-msg msg state)
    (tuple 'ok state))
-  (((tuple 'register pid) state)
+  (((tuple 'accept pid) state)
    (tuple 'ok (cons pid state)))
   ((event state) (tuple 'ok state)))
 
@@ -49,7 +49,7 @@
 
 ;;; Internal functions
 (defun send-msg (dest msg)
-  (gen_server:cast dest (tuple 'msg msg)))
+  (gen_server:cast dest (tuple 'send msg)))
 
 (defun broadcast-msg (msg users)
   (lists:map (lambda (user) (send-msg user msg)) users))

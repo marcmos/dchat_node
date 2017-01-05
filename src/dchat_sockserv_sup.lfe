@@ -1,24 +1,19 @@
 (defmodule dchat_sockserv_sup
-  (export (start_link 2)
-          (accept 0)
-          (init 1)))
+  (export (start_link 1)
+          (init 1)
+          (accept 2)))
 
-;;; API
-(defun start_link (listen-socket handler)
-  (supervisor:start_link (tuple 'local (MODULE))
-                         (MODULE)
-                         (tuple listen-socket handler)))
+;; API
+(defun start_link (handler)
+  (supervisor:start_link (MODULE) (list handler)))
 
-;; Starts new acceptor
-(defun accept ()
-  (supervisor:start_child (MODULE) ()))
+(defun accept (sup listen-socket)
+  (supervisor:start_child sup (list listen-socket)))
 
-;;; supervisor callbacks
-(defun init
-  (((tuple listen-socket handler))
-   (let ((sup-flags (map 'strategy 'simple_one_for_one))
-         (socket-server-spec (map 'id 'socket_server
-                                  'start `#(dchat_sockserv_serv
-                                            start_link
-                                            (,listen-socket ,handler)))))
-     (tuple 'ok (tuple sup-flags (list socket-server-spec))))))
+;; supervisor callbacks
+(defun init (args)
+  (let ((sup-flags (map 'strategy 'simple_one_for_one))
+        (socket-server-spec (map 'id 'socket_server
+                                 'start `#(dchat_sockserv_serv start_link ,args)
+                                 'restart 'temporary)))
+    (tuple 'ok (tuple sup-flags (list socket-server-spec)))))

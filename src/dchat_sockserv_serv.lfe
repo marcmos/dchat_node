@@ -11,15 +11,13 @@
   handler)
 
 ;;; API
-(defun start_link (listen-socket handler)
-  (gen_server:start_link (MODULE)
-                         (tuple listen-socket handler)
-                         ()))
+(defun start_link (handler listen-socket)
+  (gen_server:start_link (MODULE) (tuple listen-socket handler) ()))
 
-;;; gen_server callbacks
+;;; gen-server callbacks
 (defun init
   (((tuple listen-socket handler))
-   (apply handler 'register ())
+   (lfe_io:format "~p" (list handler))
    (gen_server:cast (self) (tuple 'accept listen-socket))
    (tuple 'ok (make-state handler handler))))
 
@@ -29,30 +27,24 @@
 
 (defun handle_cast
   (((tuple 'accept listen-socket) state)
-   (error_logger:info_msg "~p (~p) blocks awaiting for connection~n" (list (MODULE) (self)))
-   (case (gen_tcp:accept listen-socket)
-     ((tuple 'ok socket)
-      (error_logger:info_msg "~p (~p) accepted new connection~n" (list (MODULE) (self)))
-      (tuple 'noreply (set-state-socket state socket)))))
-  (((tuple 'msg msg) state)
-   (gen_tcp:send (state-socket state) msg)
-   (tuple 'noreply state))
+   (accept listen-socket state))
+  (((tuple 'send msg) state)
+   (send msg state))
   ;; Catch-all cast handler
   ((request state)
-   (error_logger:warning_msg "Unhandled cast in ~p (~p): ~p~n" (list (MODULE) (self) request))
+   (error_logger:warning_msg "Unhandled cast in ~p (~p): ~p~n"
+                             (list (MODULE) (self) request))
    (tuple 'noreply state)))
 
 (defun handle_info
   (((tuple 'tcp port msg) state)
-   (error_logger:info_msg "~p (~p) received message: ~p~n" (list (MODULE) (self) msg))
-   (handle_msg state msg)
-   (tuple 'noreply state))
+   (handle_msg msg state))
   (((tuple 'tcp_closed socket) state)
-   (error_logger:info_msg "~p (~p) closed connection~n" (list (MODULE) (self)))
-   (tuple 'stop 'normal state))
+   (handle_disconnect state))
   ;; Catch-all info handle
   ((info state)
-   (error_logger:warning_msg "Unhandled info in ~p (~p): ~p~n" (list (MODULE) (self) info))
+   (error_logger:warning_msg "Unhandled info in ~p (~p): ~p~n"
+                             (list (MODULE) (self) info))
    (tuple 'noreply state)))
 
 (defun terminate
@@ -61,5 +53,26 @@
                                       (list (MODULE) (self) reason))))
 
 ;;; Internal functions
-(defun handle_msg (state msg)
-  (apply (state-handler state) 'handle (list msg)))
+(defun accept (listen-socket state)
+  (error_logger:info_msg "~p (~p) blocks awaiting for connection~n"
+                         (list (MODULE) (self)))
+  (case (gen_tcp:accept listen-socket)
+    ((tuple 'ok socket)
+     (error_logger:info_msg "~p (~p) accepted new connection~n"
+                            (list (MODULE) (self)))
+     (gen_event:notify (state-handler state) (tuple 'accept (self)))
+     (tuple 'noreply (set-state-socket state socket)))))
+
+(defun send (msg state)
+  (gen_tcp:send (state-socket state) msg)
+  (tuple 'noreply state))
+
+(defun handle_msg (msg state)
+  (error_logger:info_msg "~p (~p) received message: ~p~n"
+                         (list (MODULE) (self) msg))
+  (gen_event:notify (state-handler state) (tuple 'msg msg))
+  (tuple 'noreply state))
+
+(defun handle_disconnect (state)
+  (error_logger:info_msg "~p (~p) closed connection~n" (list (MODULE) (self)))
+  (tuple 'stop 'normal state))

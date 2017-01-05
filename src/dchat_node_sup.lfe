@@ -3,14 +3,20 @@
   (export (start_link 1)
           (init 1)))
 
-(defun start_link (listen-socket)
+(defun start_link (client-port)
   (lfe_io:format "Starting supervision tree...~n" ())
-  (supervisor:start_link (tuple 'local (MODULE)) (MODULE) (list listen-socket)))
+  (supervisor:start_link (MODULE)
+                         (tuple client-port)))
 
 (defun init
-  (((list listen-socket))
+  (((tuple client-port))
    (let ((sup-flags (map))
-         (child-specs (list
-                       ;; conn_pool_sup
-                       )))
-     (tuple 'ok (tuple sup-flags child-specs)))))
+         (echo-spec (map 'id 'echo
+                         'start `#(dchat_echo start_link ())))
+         (conn-pool-sup-spec (map 'id 'conn_pool_sup
+                                  'start `#(dchat_conn_pool_sup
+                                            start_link
+                                            (,client-port dchat_echo))
+                                  'type 'supervisor)))
+     (tuple 'ok (tuple sup-flags (list echo-spec
+                                       conn-pool-sup-spec))))))
