@@ -23,10 +23,10 @@
   'ok)
 
 (defun handle_event
-  (((tuple 'msg msg) state)
+  (((tuple 'msg pid msg) state)
    (broadcast-msg msg state)
    (tuple 'ok state))
-  (((tuple 'accept pid) state)
+  (((tuple 'accepted pid) state)
    (tuple 'ok (cons pid state)))
   ((event state) (tuple 'ok state)))
 

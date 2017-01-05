@@ -1,14 +1,15 @@
 (defmodule dchat_sockserv_sup
-  (export (start_link 1)
-          (init 1)
-          (accept 2)))
+  (export (start_link 3)
+          (accept 1)
+          (init 1)))
 
 ;;; API
-(defun start_link (handler)
-  (supervisor:start_link (MODULE) (list handler)))
+(defun start_link (listen-socket accept-callback msg-callback)
+  (supervisor:start_link (MODULE)
+                         (list listen-socket accept-callback msg-callback)))
 
-(defun accept (sup listen-socket)
-  (supervisor:start_child sup (list listen-socket)))
+(defun accept (sup)
+  (supervisor:start_child sup ()))
 
 ;;; supervisor callbacks
 (defun init (args)

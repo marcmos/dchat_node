@@ -2,6 +2,6 @@
  [{description, "Distributed chat node"},
   {vsn, "0.0.1"},
   {mod, {dchat_node_app, []}},
-  {env, [{client_port, 9999}]}
+  {env, [{client_port, 9997}]}
  ]
 }.
