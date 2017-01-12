@@ -14,13 +14,14 @@
    (let ((sup-flags (map))
          (user-serv-spec (map 'id 'user_serv
                               'start `#(dchat_user_serv start_link ())))
-         (echo-spec (map 'id 'echo
-                         'start `#(dchat_echo start_link ())))
+         (user-sup-spec (map 'id 'user_sup
+                             'start `#(dchat_user_sup start_link ())
+                             'type 'supervisor))
          (conn-pool-sup-spec (map 'id 'conn_pool_sup
                                   'start `#(dchat_conn_pool_sup
                                             start_link
-                                            (,client-port dchat_echo))
+                                            (,client-port))
                                   'type 'supervisor)))
      (tuple 'ok (tuple sup-flags (list user-serv-spec
-                                       echo-spec
+                                       user-sup-spec
                                        conn-pool-sup-spec))))))
