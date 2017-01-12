@@ -2,7 +2,7 @@
  [{description, "Distributed chat node"},
   {vsn, "0.0.1"},
   {mod, {dchat_node_app, []}},
-  {env, [{client_port, 9997},
+  {env, [{client_port, 0},
          {nodes, [h1@localhost, h2@localhost, h3@localhost]}]},
   {applications, [mnesia]}
  ]

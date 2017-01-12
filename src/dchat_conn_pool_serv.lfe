@@ -93,4 +93,8 @@
        (tuple 'noreply (set-state-worker-sup state pid))))))
 
 (defun listen (port)
-  (gen_tcp:listen port ()))
+  (let* (((tuple 'ok socket) (gen_tcp:listen port ()))
+         ((tuple 'ok assigned-port) (inet:port socket)))
+    (error_logger:info_msg "~p (~p) listening on port ~p~n"
+                           (list (MODULE) (self) assigned-port))
+    (tuple 'ok socket)))
