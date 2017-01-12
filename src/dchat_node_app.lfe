@@ -5,7 +5,9 @@
 ;;; application callbacks
 (defun start (start-type start-args)
   (lfe_io:format "Starting dchat node app...~n" ())
-  (let (((tuple 'ok client-port) (application:get_env 'dchat_node 'client_port)))
+  (let (((tuple 'ok client-port) (application:get_env 'client_port))
+        ((tuple 'ok nodes) (application:get_env 'nodes)))
+    (mnesia:change_config 'extra_db_nodes nodes)
     (print-env client-port)
     (dchat_node_sup:start_link client-port)))
 
