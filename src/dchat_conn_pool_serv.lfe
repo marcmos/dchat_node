@@ -21,7 +21,7 @@
 (defun accept ()
   (gen_server:cast (MODULE) 'accept))
 
-;;; gen-server callbacks
+;;; gen_server callbacks
 (defun init
   (((tuple parent-sup port handler))
    (case (listen port)
