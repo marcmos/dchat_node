@@ -26,10 +26,21 @@
 
 ;;; gen_fsm callbacks
 (defun init (state)
+  (process_flag 'trap_exit 'true)
   (tuple 'ok 'not_logged_in state))
 
-(defun terminate (reason state data)
-  'void)
+(defun terminate
+  ((_ 'logged_in state)
+   (dchat_user_serv:unregister (state-nick state)))
+  ((reason state-name state-data)
+  'void))
+
+(defun handle_info
+  ;; FIXME make this process less suicidal
+  (((tuple 'EXIT _ _) state-name state-data)
+   (tuple 'stop 'normal state-data))
+  ((_ state-name state-data)
+   (tuple 'next_state state-name state-data)))
 
 ;;; State functions
 (defun not_logged_in
@@ -37,7 +48,10 @@
    (case (dchat_user_serv:register nick)
      ('ok
       (dchat_sockserv:logged_in (state-sockserv state))
-      (tuple 'next_state 'logged_in (set-state-nick state nick))))))
+      (tuple 'next_state 'logged_in (set-state-nick state nick)))
+     ('nick_taken
+      (dchat_sockserv:nick_taken (state-sockserv state) nick)
+      (tuple 'next_state 'not_logged_in state)))))
 
 (defun logged_in
   ;; world → sockserv
@@ -50,4 +64,4 @@
    (tuple 'next_state 'logged_in state))
   (((tuple 'logout) state)
    (dchat_user_serv:unregister (state-nick state))
-   (gen_fsm:stop (self))))
+   (tuple 'stop 'normal state)))

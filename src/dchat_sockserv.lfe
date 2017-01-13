@@ -8,3 +8,6 @@
 
 (defun message (sockserv from body)
   (sockserv_serv:send sockserv (tuple 'message (list from body))))
+
+(defun nick_taken (sockserv nick)
+  (sockserv_serv:send sockserv (tuple 'nick_taken (list nick))))

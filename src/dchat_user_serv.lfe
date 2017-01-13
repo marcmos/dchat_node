@@ -9,7 +9,7 @@
   (gen_server:call (MODULE) (tuple 'register nick (self))))
 
 (defun unregister (nick)
-  (gen_server:call (MODULE) (tuple 'unregister nick (self))))
+  (gen_server:call (MODULE) (tuple 'unregister nick)))
 
 (defun lookup (nick)
   (gen_server:call (MODULE) (tuple 'lookup nick)))
@@ -23,7 +23,7 @@
     (((tuple 'register nick pid) from state)
      (handle_register nick pid state))
     (((tuple 'unregister nick) from state)
-     (handle_unregister nick from))
+     (handle_unregister nick state))
     (((tuple 'lookup nick) from state)
      (handle_lookup nick state)))
 
@@ -44,8 +44,12 @@
 
 (defun handle_register (nick pid state)
   (case (mnesia:activity 'transaction
-                         (lambda () (mnesia:write (tuple (table_name) nick pid))))
-    ('ok (tuple 'reply 'ok state))))
+                         (lambda ()
+                           (case (mnesia:read (tuple (table_name) nick))
+                             (() (mnesia:write (tuple (table_name) nick pid)))
+                             ((_) 'nick_taken))))
+    ('ok (tuple 'reply 'ok state))
+    ('nick_taken (tuple 'reply 'nick_taken state))))
 
 (defun handle_unregister (nick state)
   (case (mnesia:activity 'transaction
