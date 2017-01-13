@@ -18,9 +18,9 @@
                              'start `#(dchat_user_sup start_link ())
                              'type 'supervisor))
          (conn-pool-sup-spec (map 'id 'conn_pool_sup
-                                  'start `#(dchat_conn_pool_sup
+                                  'start `#(conn_pool_sup
                                             start_link
-                                            (,client-port))
+                                            (,client-port (dchat_sockserv_event)))
                                   'type 'supervisor)))
      (tuple 'ok (tuple sup-flags (list user-serv-spec
                                        user-sup-spec

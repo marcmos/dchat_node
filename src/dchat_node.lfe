@@ -1,4 +1,4 @@
-(defmodule dchat_node_app
+(defmodule dchat_node
   (export (start 2)
           (stop 1)))
 

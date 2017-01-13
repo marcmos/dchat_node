@@ -1,27 +1,21 @@
-(defmodule dchat_sockserv_serv
-  (export (start_link 2)
-          (init 1)
-          (send 2)
-          (handle_call 3)
-          (handle_cast 2)
-          (handle_info 2)
-          (terminate 2)))
+(defmodule sockserv_serv
+  (export all))
 
 (defrecord state
   socket
-  msg-callback)
+  handler)
 
 ;;; API
-(defun start_link (listen-socket accept-callback)
+(defun start_link (listen-socket handlers)
   (gen_server:start_link (MODULE)
-                         (tuple listen-socket accept-callback)
+                         (tuple (self) listen-socket handlers)
                          ()))
 
 ;;; gen-server callbacks
 (defun init
-  (((tuple listen-socket accept-callback))
-   (gen_server:cast (self) (tuple 'accept listen-socket accept-callback))
-   (tuple 'ok ())))
+  (((tuple sup listen-socket handlers))
+   (! (self) (tuple 'accept sup listen-socket handlers))
+   (tuple 'ok (make-state))))
 
 (defun send (ref payload)
   (gen_server:cast ref (tuple 'send payload)))
@@ -31,10 +25,8 @@
   (tuple 'noreply state))
 
 (defun handle_cast
-  (((tuple 'accept listen-socket accept-callback) state)
-   (accept listen-socket accept-callback state))
   (((tuple 'send msg) state)
-   (socket_send (term_to_binary msg) state))
+   (socket_send msg state))
   ;; Catch-all cast handler
   ((request state)
    (error_logger:warning_msg "Unhandled cast in ~p (~p): ~p~n"
@@ -43,9 +35,11 @@
 
 (defun handle_info
   (((tuple 'tcp port msg) state)
-   (handle_msg (state-msg-callback state) msg state))
+   (handle_msg (binary_to_term msg) state))
   (((tuple 'tcp_closed socket) state)
    (handle_disconnect state))
+  (((tuple 'accept sup listen-socket handlers) state)
+   (accept sup listen-socket handlers state))
   ;; Catch-all info handle
   ((info state)
    (error_logger:warning_msg "Unhandled info in ~p (~p): ~p~n"
@@ -60,27 +54,41 @@
                                       (list (MODULE) (self) reason))))
 
 ;;; Internal functions
-(defun accept (listen-socket accept-callback state)
+(defun accept (sup listen-socket handlers state)
   (error_logger:info_msg "~p (~p) blocks awaiting for connection~n"
                          (list (MODULE) (self)))
   (case (gen_tcp:accept listen-socket)
     ((tuple 'ok socket)
      (error_logger:info_msg "~p (~p) accepted new connection~n"
                             (list (MODULE) (self)))
-     (case (apply accept-callback (list (self)))
-       (msg-callback (tuple 'noreply (make-state socket socket
-                                                 msg-callback msg-callback)))))))
+     (case (start_handler sup handlers)
+       ((tuple 'ok handler-pid)
+        (gen_event:notify handler-pid 'accepted)
+        (tuple 'noreply (set-state state
+                                   socket socket
+                                   handler handler-pid)))))))
 
 (defun socket_send (msg state)
-  (gen_tcp:send (state-socket state) msg)
+  (gen_tcp:send (state-socket state) (term_to_binary msg))
   (tuple 'noreply state))
 
-(defun handle_msg (msg-callback msg state)
+(defun handle_msg (msg state)
   (error_logger:info_msg "~p (~p) received message: ~p~n"
                          (list (MODULE) (self) msg))
-  (apply msg-callback (list (binary_to_term msg)))
+  (gen_event:notify (state-handler state) (tuple 'received msg))
   (tuple 'noreply state))
 
 (defun handle_disconnect (state)
   (error_logger:info_msg "~p (~p) closed connection~n" (list (MODULE) (self)))
+  (gen_event:notify (state-handler state) 'disconnected)
   (tuple 'stop 'normal state))
+
+(defun start_handler (sup handlers)
+  (let ((event-spec (map 'id 'event
+                         'start #(gen_event start_link ())
+                         'restart 'temporary)))
+    (case (supervisor:start_child sup event-spec)
+      ((tuple 'ok pid)
+       (lists:map (lambda (handler) (gen_event:add_handler pid handler (self)))
+                  handlers)
+       (tuple 'ok pid)))))

@@ -1,34 +1,29 @@
-(defmodule dchat_conn_pool_serv
-  (export (start_link 1)
-          (accept 0)
-          (init 1)
-          (terminate 2)
-          (handle_call 3)
-          (handle_cast 2)
-          (handle_info 2)
-          (code_change 3)))
+(defmodule conn_pool_serv
+  (export all))
 
 (defrecord state
   listen-socket
-  worker-sup)
+  conn-sup
+  handlers)
 
 ;;; API
-(defun start_link (port)
+(defun start_link (port handlers)
   (gen_server:start_link (tuple 'local (MODULE))
                          (MODULE)
-                         (tuple (self) port) ()))
+                         (tuple (self) port handlers) ()))
 
 (defun accept ()
   (gen_server:cast (MODULE) 'accept))
 
 ;;; gen_server callbacks
 (defun init
-  (((tuple parent-sup port))
+  (((tuple parent-sup port handlers))
    (case (listen port)
      ((tuple 'ok socket)
-      (! (self) (tuple 'start_worker_sup parent-sup))
+      (! (self) (tuple 'start_conn_sup parent-sup))
       (accept)
-      (tuple 'ok (make-state listen-socket socket))))))
+      (tuple 'ok (make-state listen-socket socket
+                             handlers handlers))))))
 
 (defun terminate
   (('normal state)
@@ -51,8 +46,8 @@
    (tuple 'noreply state)))
 
 (defun handle_info
-  (((tuple 'start_worker_sup parent-sup) state)
-   (start_worker_sup parent-sup state))
+  (((tuple 'start_conn_sup parent-sup) state)
+   (start_conn_sup parent-sup state))
   ;; Catch-all info handle
   ((info state)
    (error_logger:warning_msg "Unhandled info in ~p (~p): ~p~n"
@@ -64,30 +59,20 @@
 
 ;;; Internal functions
 (defun handle_accept (state)
-  (case (dchat_sockserv_sup:accept (state-worker-sup state)
-                                   (state-listen-socket state)
-                                   (accept_callback))
+  (case (conn_sup:accept (state-conn-sup state)
+                         (state-listen-socket state)
+                         (cons 'conn_pool_event (state-handlers state)))
     ((tuple 'ok pid)
-     (monitor 'process pid)
+     (monitor 'process pid) ;; FIXME WTF monitors supervisor?
      (tuple 'noreply state))))
 
-;;; Called on connection accept by sockserv_serv
-(defun accept_callback ()
-  (lambda (pid)
-    (accept)
-    (case (dchat_user_sup:start_user pid)
-      ((tuple 'ok user-pid)
-       (lambda (msg) (dchat_user:handle user-pid msg))))))
-
-(defun start_worker_sup (parent-sup state)
-  (let ((sockserv-sup-spec
-         (map 'id 'sockserv_sup
-              'start (tuple 'dchat_sockserv_sup
-                            'start_link
-                            ()))))
-    (case (supervisor:start_child parent-sup sockserv-sup-spec)
+(defun start_conn_sup (parent-sup state)
+  (let ((conn-sup-spec
+         (map 'id 'conn_sup
+              'start (tuple 'conn_sup 'start_link ()))))
+    (case (supervisor:start_child parent-sup conn-sup-spec)
       ((tuple 'ok pid)
-       (tuple 'noreply (set-state-worker-sup state pid))))))
+       (tuple 'noreply (set-state-conn-sup state pid))))))
 
 (defun listen (port)
   (let* (((tuple 'ok socket) (gen_tcp:listen port (list 'binary #(packet 4))))
