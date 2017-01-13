@@ -8,6 +8,7 @@
 (defun init (sockserv)
   (case (dchat_user_sup:start_user sockserv)
     ((tuple 'ok pid)
+     (link pid)
      (tuple 'ok (make-state user pid)))))
 
 (defun handle_event

@@ -2,20 +2,22 @@
   (export all))
 
 (defrecord state
+  conn-sup
+  sup
   socket
   handler)
 
 ;;; API
-(defun start_link (listen-socket handlers)
+(defun start_link (conn-sup listen-socket handlers)
   (gen_server:start_link (MODULE)
-                         (tuple (self) listen-socket handlers)
+                         (tuple conn-sup (self) listen-socket handlers)
                          ()))
 
 ;;; gen-server callbacks
 (defun init
-  (((tuple sup listen-socket handlers))
+  (((tuple conn-sup sup listen-socket handlers))
    (! (self) (tuple 'accept sup listen-socket handlers))
-   (tuple 'ok (make-state))))
+   (tuple 'ok (make-state conn-sup conn-sup sup sup))))
 
 (defun send (ref payload)
   (gen_server:cast ref (tuple 'send payload)))
@@ -49,6 +51,7 @@
 (defun terminate
   (('normal state)
    (gen_tcp:close (state-socket state))
+   (supervisor:terminate_child (state-conn-sup state) (state-sup state))
    'ok)
   ((reason state) (error_logger:error "~p (~p) terminated abnormally: ~p~n"
                                       (list (MODULE) (self) reason))))

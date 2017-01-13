@@ -9,4 +9,6 @@
    (conn_pool_serv:accept)
    (tuple 'ok serv))
   (((tuple 'received _) serv)
+   (tuple 'ok serv))
+  ((_ serv)
    (tuple 'ok serv)))

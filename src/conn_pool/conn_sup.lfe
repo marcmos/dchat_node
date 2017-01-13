@@ -10,7 +10,7 @@
 (defun init (args)
   (let ((sup-flags (map 'strategy 'simple_one_for_one))
         (sockserv-sup-spec (map 'id 'sockserv_sup
-                                'start `#(sockserv_sup start_link ,args)
+                                'start `#(sockserv_sup start_link (,(self)))
                                 'restart 'temporary
                                 'type 'supervisor)))
     (tuple 'ok (tuple sup-flags (list sockserv-sup-spec)))))

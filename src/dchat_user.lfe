@@ -49,5 +49,5 @@
    (dchat_node:send (state-nick state) to msg)
    (tuple 'next_state 'logged_in state))
   (((tuple 'logout) state)
-   ;; TODO implement
-   ))
+   (dchat_user_serv:unregister (state-nick state))
+   (gen_fsm:stop (self))))

@@ -2,12 +2,12 @@
   (export all))
 
 ;;; API
-(defun start_link (listen-socket handlers)
-  (supervisor:start_link (MODULE) (list listen-socket handlers)))
+(defun start_link (conn-sup listen-socket handlers)
+  (supervisor:start_link (MODULE) (list conn-sup listen-socket handlers)))
 
 ;;; supervisor callbacks
 (defun init (args)
-  (let ((sup-flags (map 'strategy 'one_for_one))
+  (let ((sup-flags (map 'strategy 'one_for_all))
         (serv-spec (map 'id 'serv
                         'start (tuple 'sockserv_serv 'start_link args)
                         'restart 'temporary)))
