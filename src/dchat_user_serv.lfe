@@ -5,8 +5,8 @@
 (defun start_link ()
   (gen_server:start_link (tuple 'local (MODULE)) (MODULE) () ()))
 
-(defun register (nick pid)
-  (gen_server:call (MODULE) (tuple 'register nick pid)))
+(defun register (nick)
+  (gen_server:call (MODULE) (tuple 'register nick (self))))
 
 (defun lookup (nick)
   (gen_server:call (MODULE) (tuple 'lookup nick)))

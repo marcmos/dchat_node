@@ -1,48 +1,25 @@
+;; sockserv socket events handler.
 (defmodule dchat_sockserv_event
   (export all))
 
 (defrecord state
-  sockserv
-  nick) ;; only for sync calls (like login)
+  user)
 
 (defun init (sockserv)
-  (tuple 'ok (make-state sockserv sockserv)))
+  (case (dchat_user_sup:start_user sockserv)
+    ((tuple 'ok pid)
+     (tuple 'ok (make-state user pid)))))
 
 (defun handle_event
   (((tuple 'received msg) state)
-   (let ((sockserv (state-sockserv state))
-         (nick (state-nick state)))
+   (let ((user (state-user state)))
      (case msg
        ((tuple 'login (nick))
-        (handle_login nick state))
+        (dchat_user:login (state-user state) nick))
        ((tuple 'message (to body))
-        (handle_message nick to body state))
+        (dchat_user:message (state-user state) to msg))
        ((tuple 'logout ())
-        (handle_logout state)))))
-  (('accepted state)
+        (dchat_user:logout (state-user state))))
+     (tuple 'ok state)))
+  ((_ state)
    (tuple 'ok state)))
-
-;; Internal
-(defun handle_login (nick state)
-  (let ((sockserv (state-sockserv state)))
-    (case (dchat_user_serv:register nick sockserv)
-      ('ok
-       (dchat_sockserv:logged_in sockserv)
-       (tuple 'ok (set-state-nick state nick))))))
-
-(defun handle_message (from to body state)
-  (case (dchat_user_serv:lookup to)
-    ('not_exists
-     ;; oops, unknown recipient
-     ;; FIXME deal with it
-     (tuple 'ok state))
-    (pid ;; TODO add is_pid guard
-     (dchat_sockserv:message pid from body)
-     (tuple 'ok state))))
-
-(defun handle_logout (state)
-  (dchat_user:logout (state-nick state))
-  (dchat_sockserv:logged_out (state-sockserv state))
-  ;; do self-remove
-  (tuple 'ok state)
-  )

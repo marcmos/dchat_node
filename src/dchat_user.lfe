@@ -12,8 +12,17 @@
 (defun handle (ref event)
   (gen_fsm:send_event ref event))
 
-(defun send (ref sender msg)
-  (gen_fsm:send_event ref (tuple 'send sender msg)))
+(defun login (ref nick)
+  (gen_fsm:send_event ref (tuple 'login nick)))
+
+(defun send (ref from msg)
+  (gen_fsm:send_event ref (tuple 'send from msg)))
+
+(defun message (ref to msg)
+  (gen_fsm:send_event ref (tuple 'message to msg)))
+
+(defun logout (ref)
+  (gen_fsm:send_event ref 'logout))
 
 ;;; gen_fsm callbacks
 (defun init (state)
@@ -24,18 +33,21 @@
 
 ;;; State functions
 (defun not_logged_in
-  (((tuple 'login (list nick)) state)
-   (dchat_user_serv:register nick (self))
-   (dchat_sockserv_serv:send (state-sockserv state) (tuple 'logged_in ()))
-   (tuple 'next_state 'logged_in (set-state-nick state nick))))
+  (((tuple 'login nick) state)
+   (case (dchat_user_serv:register nick)
+     ('ok
+      (dchat_sockserv:logged_in (state-sockserv state))
+      (tuple 'next_state 'logged_in (set-state-nick state nick))))))
 
 (defun logged_in
-  (((tuple 'message (list user msg)) state)
-   (dchat_user:send (dchat_user_serv:lookup user)
-                    (state-nick state)
-                    msg)
+  ;; world → sockserv
+  (((tuple 'send from msg) state)
+   (dchat_sockserv:message (state-sockserv state) from msg)
    (tuple 'next_state 'logged_in state))
-  (((tuple 'send sender msg) state)
-   (dchat_sockserv_serv:send (state-sockserv state)
-                       (tuple 'message (list sender msg)))
-   (tuple 'next_state 'logged_in state)))
+  ;; sockserv → world
+  (((tuple 'message to msg) state)
+   (dchat_node:send (state-nick state) to msg)
+   (tuple 'next_state 'logged_in state))
+  (((tuple 'logout) state)
+   ;; TODO implement
+   ))

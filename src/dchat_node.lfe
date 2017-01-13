@@ -1,6 +1,7 @@
 (defmodule dchat_node
   (export (start 2)
-          (stop 1)))
+          (stop 1)
+          (send 3)))
 
 ;;; application callbacks
 (defun start (start-type start-args)
@@ -19,3 +20,10 @@
 (defun print-env (client-port)
   (lfe_io:format "~nEnvironment settings:~n" ())
   (lfe_io:format "* client listen port: ~p~n~n" (list client-port)))
+
+(defun send (from to msg)
+  (case (dchat_user_serv:lookup to)
+    ('not_exists
+     (tuple 'error 'user_not_exists))
+    (recipient ;; TODO add is_pid guard
+     (dchat_user:send recipient from msg))))
