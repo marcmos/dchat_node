@@ -1,15 +1,27 @@
-; Main node supervisor
 (defmodule dchat_node_sup
-  (export (start_link 2)
+  (export (start_link 1)
           (init 1)))
 
-(defun start_link (node-socket client-socket)
+;;; API
+(defun start_link (client-port)
   (lfe_io:format "Starting supervision tree...~n" ())
-  (supervisor:start_link (tuple 'local (MODULE)) (MODULE) (list node-socket client-socket)))
+  (supervisor:start_link (MODULE)
+                         (tuple client-port)))
 
+;;; supervisor callbacks
 (defun init
-  (((list node-socket client-socket))
+  (((tuple client-port))
    (let ((sup-flags (map))
-         (child-specs (list (map 'id 'dchat_acceptor_sup
-                                 'start `#(dchat_acceptor_sup start_link (,node-socket ,client-socket))))))
-     (tuple 'ok (tuple sup-flags child-specs)))))
+         (user-serv-spec (map 'id 'user_serv
+                              'start `#(dchat_user_serv start_link ())))
+         (user-sup-spec (map 'id 'user_sup
+                             'start `#(dchat_user_sup start_link ())
+                             'type 'supervisor))
+         (conn-pool-sup-spec (map 'id 'conn_pool_sup
+                                  'start `#(conn_pool_sup
+                                            start_link
+                                            (,client-port (dchat_sockserv_event)))
+                                  'type 'supervisor)))
+     (tuple 'ok (tuple sup-flags (list user-serv-spec
+                                       user-sup-spec
+                                       conn-pool-sup-spec))))))
