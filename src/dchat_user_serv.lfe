@@ -20,12 +20,12 @@
     ('ok (tuple 'ok ()))))
 
 (defun handle_call
-    (((tuple 'register nick pid) from state)
-     (handle_register nick pid state))
-    (((tuple 'unregister nick) from state)
-     (handle_unregister nick state))
-    (((tuple 'lookup nick) from state)
-     (handle_lookup nick state)))
+  (((tuple 'register nick pid) from state)
+   (handle_register nick pid state))
+  (((tuple 'unregister nick) from state)
+   (handle_unregister nick state))
+  (((tuple 'lookup nick) from state)
+   (handle_lookup nick state)))
 
 ;;; Internal functions
 (defun table_name ()

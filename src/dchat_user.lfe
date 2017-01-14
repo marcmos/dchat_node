@@ -47,7 +47,8 @@
   (((tuple 'login nick) state)
    (case (dchat_user_serv:register nick)
      ('ok
-      (dchat_sockserv:logged_in (state-sockserv state))
+      ;;(dchat_sockserv:logged_in (state-sockserv state))
+      (add_servers (state-sockserv state))
       (tuple 'next_state 'logged_in (set-state-nick state nick)))
      ('nick_taken
       (dchat_sockserv:nick_taken (state-sockserv state) nick)
@@ -65,3 +66,7 @@
   (((tuple 'logout) state)
    (dchat_user_serv:unregister (state-nick state))
    (tuple 'stop 'normal state)))
+
+(defun add_servers (sockserv)
+  (lists:map (lambda (host) (dchat_sockserv:add_server sockserv host))
+             (dchat_directory_serv:get)))

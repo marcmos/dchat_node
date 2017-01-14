@@ -21,7 +21,12 @@
                                   'start `#(conn_pool_sup
                                             start_link
                                             (,client-port (dchat_sockserv_event)))
-                                  'type 'supervisor)))
+                                  'type 'supervisor))
+         (directory-serv-spec (map 'id 'directory_serv
+                                   'start `#(dchat_directory_serv
+                                             start_link
+                                             ()))))
      (tuple 'ok (tuple sup-flags (list user-serv-spec
                                        user-sup-spec
-                                       conn-pool-sup-spec))))))
+                                       conn-pool-sup-spec
+                                       directory-serv-spec))))))

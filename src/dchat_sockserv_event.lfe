@@ -18,7 +18,7 @@
        ((tuple 'login (nick))
         (dchat_user:login (state-user state) nick))
        ((tuple 'message (to body))
-        (dchat_user:message (state-user state) to msg))
+        (dchat_user:message (state-user state) to body))
        ((tuple 'logout ())
         (dchat_user:logout (state-user state))))
      (tuple 'ok state)))

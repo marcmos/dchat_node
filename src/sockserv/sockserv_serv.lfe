@@ -72,6 +72,8 @@
                                    handler handler-pid)))))))
 
 (defun socket_send (msg state)
+  (error_logger:info_msg "~p (~p) sending message: ~p~n"
+                            (list (MODULE) (self) msg))
   (gen_tcp:send (state-socket state) (term_to_binary msg))
   (tuple 'noreply state))
 
