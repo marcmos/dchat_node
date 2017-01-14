@@ -13,9 +13,17 @@ dchat_node – Distributed chat server node
 ## How to run?
 Application provides standard OTP application behaviour under `dchat_node`.
 
-In LFE REPL type:
-`(application:start 'dchat_node)`
+
+
+Run LFE REPL in distributed mode (short-hostname `h1`) with `_build` code path:
+```
+lfe -sname h1 -pa _build/default/lib/dchat_node/ebin/
+```
+and run application including dependencies:
+```
+(application:ensure_all_started 'dchat_node)
+```
 
 ## Configuration parameters
-* `node_port` – node-to-node TCP listen port
-* `client_port` – client-to-node TCP listen port
+* `client_port` – client-to-node TCP listen port, defaults to 0
+(system random pick).
