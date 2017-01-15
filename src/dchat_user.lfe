@@ -69,4 +69,4 @@
 
 (defun add_servers (sockserv)
   (lists:map (lambda (host) (dchat_sockserv:add_server sockserv host))
-             (dchat_directory_serv:get)))
+             (dchat_directory_serv:list)))

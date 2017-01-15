@@ -28,8 +28,7 @@
    (handle_lookup nick state)))
 
 ;;; Internal functions
-(defun table_name ()
-  'users)
+(defun table_name () 'users)
 
 (defun init_table ()
   (let* (((tuple 'ok nodes) (application:get_env 'nodes))
@@ -44,10 +43,13 @@
 
 (defun handle_register (nick pid state)
   (case (mnesia:activity 'transaction
-                         (lambda ()
-                           (case (mnesia:read (tuple (table_name) nick))
-                             (() (mnesia:write (tuple (table_name) nick pid)))
-                             ((_) 'nick_taken))))
+                         ;;(lambda ()
+                         ;;  (case (mnesia:read (tuple (table_name) nick))
+                         ;;    (() (mnesia:write (tuple (table_name) nick pid)))
+                         ;;    ((_) 'nick_taken))))
+
+                         ;; FIXME temporarily do not check nick ownership
+                         (lambda () (mnesia:write (tuple (table_name) nick pid))))
     ('ok (tuple 'reply 'ok state))
     ('nick_taken (tuple 'reply 'nick_taken state))))
 
