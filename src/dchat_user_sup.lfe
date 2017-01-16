@@ -8,6 +8,11 @@
 (defun start_user (sockserv)
   (supervisor:start_child (MODULE) (list sockserv)))
 
+(defun users ()
+  (lists:map (lambda (user)
+               (element 2 user))
+             (supervisor:which_children (MODULE))))
+
 ;;; supervisor callbacks
 (defun init (args)
   (let ((sup-flags (map 'strategy 'simple_one_for_one))

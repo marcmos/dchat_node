@@ -4,19 +4,35 @@
 (defrecord node
   name
   addr
-  port)
+  event-pid)
 
 (defun start_link ()
   (gen_server:start_link (tuple 'local (MODULE)) (MODULE) () ()))
 
-(defun list ()
+(defun node_list ()
   (gen_server:call (MODULE) 'list))
 
 (defun init (args)
   (case (init_table)
     ('ok
-     (register_self)
+     (let ((active-nodes (mnesia_read_all))
+           (self-record (make_self_record)))
+       ;; Register self in directory and announce to remote event handlers
+       (register self-record)
+       (announce active-nodes self-record)
+
+       ;; Register discovered nodes in local event handler
+       (lists:map (lambda (node)
+                    (dchat_node_event:node_up 'dchat_node_event
+                                              (node-name node)
+                                              (node-addr node)
+                                              (node-event-pid node)))
+                  active-nodes))
      (tuple 'ok ()))))
+
+(defun terminate (reason state)
+  ;; TODO unregister self
+  )
 
 (defun handle_call
   (('list from state)
@@ -24,16 +40,25 @@
      (nodes (tuple 'reply nodes state)))))
 
 ;;; Internal functions
-(defun register (name addr port)
+(defun register (node)
   (error_logger:info_msg "~p registering node ~p~n"
-                         (list (MODULE) name))
-  (mnesia_write (make-node name name addr addr port port)))
+                         (list (MODULE) (node-name node)))
+  (mnesia_write node))
 
-(defun register_self ()
-  (let ((name (node))
-        ((tuple 'ok client-addr) (application:get_env 'listen_addr))
-        (listen-port (conn_pool_serv:listen_port 'dchat_conn_pool_serv)))
-    (register name client-addr listen-port)))
+(defun make_self_record ()
+  (let (((tuple 'ok client-addr) (application:get_env 'listen_addr)))
+    (make-node name (node)
+               addr (tuple client-addr
+                           (conn_pool_serv:listen_port 'dchat_conn_pool_serv))
+               event-pid (whereis 'dchat_node_event))))
+
+(defun announce (nodes node-record)
+  (lists:map (lambda (node)
+               (dchat_node_event:node_up (node-event-pid node)
+                                         (node-name node-record)
+                                         (node-addr node-record)
+                                         (node-event-pid node-record)))
+             nodes))
 
 ;;; Mnesia-related functions
 (defun table_name () 'node)
@@ -56,11 +81,8 @@
   (mnesia:activity 'transaction (lambda () (mnesia:write node-record))))
 
 (defun mnesia_read_all ()
-  (mnesia:activity 'transaction
-                   (lambda ()
-                     (mnesia:foldl (lambda (node node-list)
-                                     (cons (tuple (node-addr node)
-                                                  (node-port node))
-                                           node-list))
+  (mnesia:activity 'transaction (lambda ()
+                                  (mnesia:foldl (lambda (node node-list)
+                                     (cons node node-list))
                                    ()
                                    'node))))

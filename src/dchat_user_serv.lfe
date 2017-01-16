@@ -14,6 +14,9 @@
 (defun lookup (nick)
   (gen_server:call (MODULE) (tuple 'lookup nick)))
 
+(defun list ()
+  (gen_server:call (MODULE) 'list))
+
 ;;; gen_server callbacks
 (defun init (args)
   (case (init_table)
@@ -25,7 +28,9 @@
   (((tuple 'unregister nick) from state)
    (handle_unregister nick state))
   (((tuple 'lookup nick) from state)
-   (handle_lookup nick state)))
+   (handle_lookup nick state))
+  (('list from state)
+   (handle_list state)))
 
 ;;; Internal functions
 (defun table_name () 'users)
@@ -53,6 +58,8 @@
     ('ok (tuple 'reply 'ok state))
     ('nick_taken (tuple 'reply 'nick_taken state))))
 
+;; FIXME abstract out mnesia actions out of cast responses
+;; (see dchat_directory_serv)
 (defun handle_unregister (nick state)
   (case (mnesia:activity 'transaction
                          (lambda () (mnesia:delete (tuple (table_name) nick))))
@@ -63,3 +70,12 @@
                          (lambda () (mnesia:read (table_name) nick)))
     (() (tuple 'reply 'not_exists state))
     ((list (tuple _ nick pid)) (tuple 'reply pid state))))
+
+(defun handle_list (state)
+  (case (mnesia:activity 'transaction
+                    (lambda ()
+                      (mnesia:foldl (lambda (user user-list)
+                                      (cons user user-list))
+                                    ()
+                                    (table_name))))
+    (users (tuple 'reply users state))))

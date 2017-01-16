@@ -12,5 +12,5 @@
 (defun nick_taken (sockserv nick)
   (sockserv_serv:send sockserv (tuple 'nick_taken (list nick))))
 
-(defun add_server (sockserv host)
-  (sockserv_serv:send sockserv (tuple 'add_server (list host))))
+(defun add_server (sockserv addr port)
+  (sockserv_serv:send sockserv (tuple 'add_server (list (tuple addr port)))))
