@@ -11,6 +11,9 @@
 (defun unregister (nick)
   (gen_server:call (MODULE) (tuple 'unregister nick)))
 
+(defun unregister_node (node)
+  (gen_server:call (MODULE) (tuple 'unregister_node node)))
+
 (defun lookup (nick)
   (gen_server:call (MODULE) (tuple 'lookup nick)))
 
@@ -27,6 +30,8 @@
    (handle_register nick pid state))
   (((tuple 'unregister nick) from state)
    (handle_unregister nick state))
+  (((tuple 'unregister_node node) from state)
+   (handle_unregister_node node state))
   (((tuple 'lookup nick) from state)
    (handle_lookup nick state))
   (('list from state)
@@ -48,13 +53,13 @@
 
 (defun handle_register (nick pid state)
   (case (mnesia:activity 'transaction
-                         ;;(lambda ()
-                         ;;  (case (mnesia:read (tuple (table_name) nick))
-                         ;;    (() (mnesia:write (tuple (table_name) nick pid)))
-                         ;;    ((_) 'nick_taken))))
+                         (lambda ()
+                           (case (mnesia:read (tuple (table_name) nick))
+                             (() (mnesia:write (tuple (table_name) nick pid)))
+                             ((_) 'nick_taken))))
 
-                         ;; FIXME temporarily do not check nick ownership
-                         (lambda () (mnesia:write (tuple (table_name) nick pid))))
+    ;; FIXME temporarily do not check nick ownership
+    ;; (lambda () (mnesia:write (tuple (table_name) nick pid))))
     ('ok (tuple 'reply 'ok state))
     ('nick_taken (tuple 'reply 'nick_taken state))))
 
@@ -64,6 +69,24 @@
   (case (mnesia:activity 'transaction
                          (lambda () (mnesia:delete (tuple (table_name) nick))))
     ('ok (tuple 'reply 'ok state))))
+
+;; FIXME rewrite it (select should suffice)
+(defun handle_unregister_node (node state)
+  (mnesia:activity 'transaction
+                   (lambda ()
+                     (let ((users (mnesia:foldl
+                                   (lambda (user user-list)
+                                     (cons user user-list))
+                                   ()
+                                   (table_name))))
+                       (lists:map
+                        (lambda (user)
+                          ;; FIXME create record
+                          (if (=:= node (node (element 3 user)))
+                            (mnesia:delete (tuple (table_name)
+                                                  (element 2 user)))))
+                        users)
+                       (tuple 'reply users state)))))
 
 (defun handle_lookup (nick state)
   (case (mnesia:activity 'transaction

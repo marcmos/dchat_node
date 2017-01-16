@@ -24,8 +24,12 @@
 (defun logout (ref)
   (gen_fsm:send_event ref 'logout))
 
+;; FIXME addr and port with a single tuple
 (defun add_server (ref addr port)
   (gen_fsm:send_event ref (tuple 'add_server addr port)))
+
+(defun remove_server (ref addr port)
+  (gen_fsm:send_event ref (tuple 'remove_server addr port)))
 
 ;;; gen_fsm callbacks
 (defun init (state)
@@ -64,6 +68,9 @@
    (tuple 'next_state 'logged_in state))
   (((tuple 'add_server addr port) state)
    (dchat_sockserv:add_server (state-sockserv state) addr port)
+   (tuple 'next_state 'logged_in state))
+  (((tuple 'remove_server addr port) state)
+   (dchat_sockserv:remove_server (state-sockserv state) addr port)
    (tuple 'next_state 'logged_in state))
 
   ;; sockserv → world

@@ -1,6 +1,7 @@
 (defmodule dchat_directory_serv
   (export all))
 
+;; FIXME share this record with node_event
 (defrecord node
   name
   addr
@@ -11,6 +12,12 @@
 
 (defun node_list ()
   (gen_server:call (MODULE) 'list))
+
+(defun pid_list ()
+  (lists:map (lambda (node) (node-event-pid node)) (node_list)))
+
+(defun unregister (node)
+  (gen_server:call (MODULE) (tuple 'unregister node)))
 
 (defun init (args)
   (case (init_table)
@@ -37,7 +44,9 @@
 (defun handle_call
   (('list from state)
    (case (mnesia_read_all)
-     (nodes (tuple 'reply nodes state)))))
+     (nodes (tuple 'reply nodes state))))
+  (((tuple 'unregister node) from state)
+   (tuple 'reply (mnesia_read_delete node) state)))
 
 ;;; Internal functions
 (defun register (node)
@@ -65,13 +74,15 @@
 
 (defun init_table ()
   (let* (((tuple 'ok nodes) (application:get_env 'nodes))
-         (create-result (mnesia:create_table 'node
-                                             (list `#(ram_copies ,nodes)
-                                                   (tuple 'attributes (fields-node))
-                                                   ))))
+         (create-result
+          (mnesia:create_table 'node
+                               (list `#(ram_copies ,nodes)
+                                     (tuple 'attributes (fields-node))
+                                     ))))
     (case create-result
       (#(atomic ok)
-       (error_logger:info_msg "~p created node directory table~n" (list (MODULE))))
+       (error_logger:info_msg "~p created node directory table~n"
+                              (list (MODULE))))
       (`#(aborted #(already_exists ,_))
        (error_logger:warning_msg "~p skipped node directory table creation~n"
                                  (list (MODULE))))))
@@ -79,6 +90,15 @@
 
 (defun mnesia_write (node-record)
   (mnesia:activity 'transaction (lambda () (mnesia:write node-record))))
+
+(defun mnesia_read_delete (node)
+  (mnesia:activity 'transaction
+                   (lambda () (case (mnesia:read (tuple (table_name) node))
+                                ((node-record)
+                                 (mnesia:delete (tuple (table_name) node))
+                                 node-record)
+                                (()
+                                 ())))))
 
 (defun mnesia_read_all ()
   (mnesia:activity 'transaction (lambda ()
