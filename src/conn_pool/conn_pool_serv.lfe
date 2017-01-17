@@ -7,13 +7,17 @@
   handlers)
 
 ;;; API
-(defun start_link (port handlers)
-  (gen_server:start_link (tuple 'local (MODULE))
-                         (MODULE)
-                         (tuple (self) port handlers) ()))
+(defun start_link (server-name port handlers)
+  (gen_server:start_link server-name (MODULE) (tuple (self) port handlers) ()))
 
-(defun accept ()
-  (gen_server:cast (MODULE) 'accept))
+(defun start_link (port handlers)
+   (gen_server:start_link (MODULE) (tuple (self) port handlers) ()))
+
+(defun accept (serv)
+  (gen_server:cast serv 'accept))
+
+(defun listen_port (serv)
+  (gen_server:call serv 'listen_port))
 
 ;;; gen_server callbacks
 (defun init
@@ -21,7 +25,7 @@
    (case (listen port)
      ((tuple 'ok socket)
       (! (self) (tuple 'start_conn_sup parent-sup))
-      (accept)
+      (accept (self))
       (tuple 'ok (make-state listen-socket socket
                              handlers handlers))))))
 
@@ -33,8 +37,13 @@
                                       (list (MODULE) (self) reason))))
 
 ;; No-op handle call
-(defun handle_call (e from state)
-  (tuple 'noreply state))
+(defun handle_call
+  (('listen_port from state)
+   (case (inet:port (state-listen-socket state))
+     ((tuple 'ok assigned-port)
+      (tuple 'reply assigned-port state))))
+  ((_ _ state)
+   (tuple 'noreply state)))
 
 (defun handle_cast
   (('accept state)
@@ -61,9 +70,8 @@
 (defun handle_accept (state)
   (case (conn_sup:accept (state-conn-sup state)
                          (state-listen-socket state)
-                         (cons 'conn_pool_event (state-handlers state)))
+                         (state-handlers state))
     ((tuple 'ok pid)
-     (monitor 'process pid) ;; FIXME WTF monitors supervisor?
      (tuple 'noreply state))))
 
 (defun start_conn_sup (parent-sup state)

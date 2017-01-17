@@ -24,6 +24,13 @@
 (defun logout (ref)
   (gen_fsm:send_event ref 'logout))
 
+;; FIXME addr and port with a single tuple
+(defun add_server (ref addr port)
+  (gen_fsm:send_event ref (tuple 'add_server addr port)))
+
+(defun remove_server (ref addr port)
+  (gen_fsm:send_event ref (tuple 'remove_server addr port)))
+
 ;;; gen_fsm callbacks
 (defun init (state)
   (process_flag 'trap_exit 'true)
@@ -47,7 +54,8 @@
   (((tuple 'login nick) state)
    (case (dchat_user_serv:register nick)
      ('ok
-      (dchat_sockserv:logged_in (state-sockserv state))
+      ;;(dchat_sockserv:logged_in (state-sockserv state))
+      (announce_servers state)
       (tuple 'next_state 'logged_in (set-state-nick state nick)))
      ('nick_taken
       (dchat_sockserv:nick_taken (state-sockserv state) nick)
@@ -58,6 +66,13 @@
   (((tuple 'send from msg) state)
    (dchat_sockserv:message (state-sockserv state) from msg)
    (tuple 'next_state 'logged_in state))
+  (((tuple 'add_server addr port) state)
+   (dchat_sockserv:add_server (state-sockserv state) addr port)
+   (tuple 'next_state 'logged_in state))
+  (((tuple 'remove_server addr port) state)
+   (dchat_sockserv:remove_server (state-sockserv state) addr port)
+   (tuple 'next_state 'logged_in state))
+
   ;; sockserv → world
   (((tuple 'message to msg) state)
    (dchat_node:send (state-nick state) to msg)
@@ -65,3 +80,11 @@
   (((tuple 'logout) state)
    (dchat_user_serv:unregister (state-nick state))
    (tuple 'stop 'normal state)))
+
+(defun announce_servers (state)
+  (lists:map (match-lambda
+               (((tuple 'node name (tuple addr port) _))
+                ;; Do not announce yourself
+                (if (=/= name (node))
+                  (dchat_sockserv:add_server (state-sockserv state) addr port))))
+             (dchat_directory_serv:node_list)))
