@@ -1,8 +1,10 @@
 {application, dchat_node,
  [{description, "Distributed chat node"},
   {vsn, "0.0.1"},
-  {mod, {dchat_node_app, []}},
-  {env, [{node_port, 8888},
-         {client_port, 9999}]}
+  {mod, {dchat_node, []}},
+  {env, [{listen_addr, "j3b.tobiasz.maxmati.pl"},
+         {listen_port, 0},
+         {nodes, [h1@localhost, h2@localhost, h3@localhost]}]},
+  {applications, [mnesia]}
  ]
 }.
